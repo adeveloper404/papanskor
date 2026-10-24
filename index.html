@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Papan Skor Digital</title>
+    <style>
+        :root {
+            --bg-color: #363636;
+            --card-bg: #5a5a5a;
+            --text-main: #ffffff;
+            --score-color: #e5e510;
+            --btn-bg: #ffffff;
+            --btn-text: #333333;
+            --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        /* Tema 1: Bawaan */
+        body.theme-bawaan { --bg-color: #363636; --card-bg: #5a5a5a; --text-main: #ffffff; --score-color: #e5e510; }
+        /* Tema 2: Gaya cerah */
+        body.theme-cerah { --bg-color: #f0f2f5; --card-bg: #ffffff; --text-main: #333333; --score-color: #1a73e8; --btn-bg: #333; --btn-text: #fff; }
+        /* Tema 3: Layar LED */
+        body.theme-led { --bg-color: #050505; --card-bg: #111111; --text-main: #ffffff; --score-color: #00ff00; }
+        body.theme-led .score-display { text-shadow: 0 0 15px rgba(0,255,0,0.7); }
+        body.theme-led .set-box { text-shadow: 0 0 10px rgba(255,255,255,0.5); }
+        /* Tema 4: Tim merah / Tim biru */
+        body.theme-redblue { --bg-color: #1a1a1a; --text-main: #ffffff; --score-color: #ffffff; }
+        body.theme-redblue #card1 { background-color: #990000; }
+        body.theme-redblue #card2 { background-color: #003399; }
+        /* Tema 5: Jam flip */
+        body.theme-flip { --bg-color: #121212; --card-bg: #000000; --text-main: #dddddd; --score-color: #dddddd; }
+        body.theme-flip .score-display, body.theme-flip .set-box {
+            background-color: #222; border-radius: 12px; padding: 0 15px; position: relative; box-shadow: inset 0 5px 15px rgba(0,0,0,0.8);
+        }
+        body.theme-flip .score-display::after, body.theme-flip .set-box::after {
+            content: ''; position: absolute; top: 50%; left: 0; right: 0; height: 4px; background-color: rgba(0, 0, 0, 0.8); margin-top: -2px;
+        }
+        /* Tema 6: Papan kapur */
+        body.theme-kapur { --bg-color: #2b3a32; --card-bg: #1e2923; --text-main: #f4f4f0; --score-color: #f4f4f0; --font-family: 'Comic Sans MS', 'Chalkboard SE', sans-serif; }
+        body.theme-kapur .team-card, body.theme-kapur .set-box { border: 2px dashed rgba(255,255,255,0.3); }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: var(--font-family); transition: background-color 0.3s, color 0.3s, text-shadow 0.3s; }
+
+        body {
+            background-color: var(--bg-color); color: var(--text-main); display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; overflow-x: hidden;
+        }
+
+        .scoreboard-container { display: flex; justify-content: center; align-items: flex-start; gap: 20px; margin-bottom: 30px; width: 100%; max-width: 1100px; z-index: 1;}
+        
+        .team-card {
+            background-color: var(--card-bg); border-radius: 15px; padding: 30px 20px; flex: 1; min-width: 300px; max-width: 450px; display: flex; flex-direction: column; align-items: center; box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+
+        .team-name { font-size: clamp(2rem, 4vw, 3.5rem); font-weight: 400; margin-bottom: 10px; text-align: center; cursor: pointer; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        .score-display {
+            font-size: clamp(8rem, 15vw, 18rem); font-weight: bold; color: var(--score-color); line-height: 1.1; cursor: pointer; user-select: none; font-family: 'Impact', 'Arial Narrow', sans-serif; font-variant-numeric: tabular-nums; min-width: 1.5em; text-align: center; display: inline-block;
+        }
+
+        .set-container { display: flex; gap: 15px; margin-top: 10px; }
+        .set-wrapper { display: flex; flex-direction: column; align-items: center; }
+        .set-box {
+            background-color: var(--card-bg); border-radius: 10px; padding: 15px 20px; font-size: clamp(2rem, 4vw, 4rem); font-weight: bold; color: var(--text-main); box-shadow: 0 5px 15px rgba(0,0,0,0.2); cursor: pointer; user-select: none; font-family: 'Impact', 'Arial Narrow', sans-serif; font-variant-numeric: tabular-nums; min-width: 1.5em; text-align: center;
+        }
+
+        .btn-minus-score { margin-top: 20px; padding: 8px 25px; font-size: 1.2rem; border: none; border-radius: 5px; background-color: rgba(128,128,128,0.2); color: var(--text-main); cursor: pointer; transition: background-color 0.2s; }
+        .btn-minus-set { font-size: 1rem; padding: 2px 15px; margin-top: 5px; border: none; border-radius: 5px; background-color: rgba(128,128,128,0.2); color: var(--text-main); cursor: pointer; }
+        .btn-minus-score:hover, .btn-minus-set:hover { background-color: rgba(128,128,128,0.4); }
+
+        /* Sembunyikan Tombol Minus */
+        body.hide-minus .btn-minus-score, body.hide-minus .btn-minus-set { display: none !important; }
+
+        /* Mode Fullscreen Hide */
+        body.is-fullscreen .hide-in-fullscreen { display: none !important; }
+        body.is-fullscreen .controls button { opacity: 0.5; transition: opacity 0.3s; }
+        body.is-fullscreen .controls button:hover { opacity: 1; }
+
+        .controls { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; background-color: transparent; z-index: 1; }
+        .controls button, .controls select {
+            padding: 10px 15px; font-size: 1rem; border: 1px solid rgba(128,128,128,0.3); border-radius: 5px; background-color: var(--btn-bg); color: var(--btn-text); cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: transform 0.2s, opacity 0.2s;
+        }
+        .controls button:hover, .controls select:hover { opacity: 0.9; transform: translateY(-2px); }
+        .info-text { margin-top: 15px; font-size: 0.8rem; opacity: 0.7; z-index: 1; }
+
+        /* =========================================
+           ANIMASI WINNER / CHAMPION
+        ========================================= */
+        .winner-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: radial-gradient(circle, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.95) 100%);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 9999; opacity: 0; pointer-events: none; transition: opacity 0.5s ease-in-out;
+            backdrop-filter: blur(8px);
+        }
+        .winner-overlay.show { opacity: 1; pointer-events: all; }
+        
+        .winner-content { text-align: center; position: relative; z-index: 2; transform: scale(0.5); opacity: 0; transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.5s; width: 100%; }
+        .winner-overlay.show .winner-content { transform: scale(1); opacity: 1; }
+
+        .winner-title {
+            font-size: clamp(3rem, 8vw, 6rem); font-family: 'Impact', sans-serif;
+            color: #ffd700; text-transform: uppercase; margin: 0; line-height: 1;
+            text-shadow: 0 0 20px #ffaa00, 0 0 40px #ff5500, 2px 2px 0px #fff;
+            animation: pulseGlow 1.5s infinite alternate;
+        }
+
+        /* NAMA TIM DIPERBESAR DAN DIBUAT MENCILOK */
+        .winner-team-name {
+            font-size: clamp(4rem, 12vw, 8.5rem); /* Diperbesar signifikan */
+            font-weight: 900; color: #ffffff;
+            margin-top: 10px; margin-bottom: 40px; 
+            text-transform: uppercase; letter-spacing: 3px;
+            text-shadow: 0 8px 20px rgba(0,0,0,0.9), 0 0 30px rgba(255, 215, 0, 0.6);
+            word-wrap: break-word; padding: 0 20px;
+        }
+
+        /* TOMBOL DIPERKECIL DAN SEDIKIT TRANSPARAN */
+        .winner-actions button {
+            padding: 8px 20px; /* Ukuran padding lebih kecil */
+            font-size: 0.9rem; /* Ukuran font lebih kecil */
+            font-weight: bold; border: none; border-radius: 50px;
+            background: linear-gradient(135deg, #ffd700, #ffaa00); color: #000; cursor: pointer;
+            margin: 0 10px; box-shadow: 0 3px 10px rgba(255, 170, 0, 0.3); transition: transform 0.2s, opacity 0.2s;
+            opacity: 0.7; /* Agak transparan agar tidak mendominasi */
+        }
+        .winner-actions button:hover { transform: scale(1.05); opacity: 1; }
+
+        /* Efek Cahaya Berputar (Sunburst) */
+        .sunburst {
+            position: absolute; top: 50%; left: 50%; width: 200vw; height: 200vw;
+            background: repeating-conic-gradient(from 0deg, rgba(255, 215, 0, 0.15) 0deg 15deg, transparent 15deg 30deg);
+            transform: translate(-50%, -50%); animation: rotateBurst 20s linear infinite; z-index: 1;
+        }
+
+        @keyframes pulseGlow {
+            0% { text-shadow: 0 0 20px #ffaa00, 0 0 40px #ff5500, 2px 2px 0px #fff; transform: scale(1); }
+            100% { text-shadow: 0 0 40px #ffaa00, 0 0 80px #ff5500, 2px 2px 0px #fff; transform: scale(1.05); }
+        }
+        @keyframes rotateBurst { 100% { transform: translate(-50%, -50%) rotate(360deg); } }
+
+        @media (max-width: 768px) {
+            .scoreboard-container { flex-direction: column; align-items: center; }
+            .team-card { width: 100%; min-width: unset; }
+            .set-container { order: -1; margin-bottom: 20px; }
+            .winner-actions button { margin: 10px; display: block; width: 60%; margin-left: auto; margin-right: auto; }
+        }
+    </style>
+</head>
+<body class="theme-bawaan" id="bodyElement">
+
+    <!-- Efek Pemenang -->
+    <div id="winnerScreen" class="winner-overlay">
+        <div class="sunburst"></div>
+        <div class="winner-content">
+            <h1 class="winner-title">CHAMPION!</h1>
+            <div class="winner-team-name" id="winnerNameDisplay">Nama Tim</div>
+            <div class="winner-actions">
+                <button onclick="closeWinnerScreen()">Tutup & Lanjut</button>
+                <button onclick="resetScore(); closeWinnerScreen()">Setel Ulang Match</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="scoreboard-container">
+        <!-- Tim Kiri -->
+        <div class="team-card" id="card1">
+            <div class="team-name" id="name1" onclick="editName(1)" title="Klik untuk edit nama">Rmh</div>
+            <div class="score-display" id="score1" onclick="addScore(1)" title="Klik untuk tambah poin">0</div>
+            <button class="btn-minus-score" onclick="subScore(1)">-1 Poin</button>
+        </div>
+
+        <!-- Set Area Tengah -->
+        <div class="set-container">
+            <div class="set-wrapper">
+                <div class="set-box" id="set1" onclick="addSet(1)" title="Tambah Set Rmh">0</div>
+                <button class="btn-minus-set" onclick="subSet(1)">-1</button>
+            </div>
+            <div class="set-wrapper">
+                <div class="set-box" id="set2" onclick="addSet(2)" title="Tambah Set Tamu">0</div>
+                <button class="btn-minus-set" onclick="subSet(2)">-1</button>
+            </div>
+        </div>
+
+        <!-- Tim Kanan -->
+        <div class="team-card" id="card2">
+            <div class="team-name" id="name2" onclick="editName(2)" title="Klik untuk edit nama">Tamu</div>
+            <div class="score-display" id="score2" onclick="addScore(2)" title="Klik untuk tambah poin">0</div>
+            <button class="btn-minus-score" onclick="subScore(2)">-1 Poin</button>
+        </div>
+    </div>
+
+    <!-- Tombol Kontrol Utama -->
+    <div class="controls">
+        <button onclick="toggleFullScreen()" id="fullscreenBtn">Layar Penuh</button>
+        <button onclick="toggleMinusButtons()" id="toggleMinusBtn">Sembunyikan -1</button>
+        
+        <!-- Kontrol yang disembunyikan saat layar penuh -->
+        <button class="hide-in-fullscreen" onclick="setGamePoint()">Atur Game Point (<span id="gpDisplay">25</span>)</button>
+        <button class="hide-in-fullscreen" onclick="resetScore()">Setel Ulang</button>
+        <button class="hide-in-fullscreen" onclick="swapTeams()">Tukar Posisi</button>
+        <button class="hide-in-fullscreen" onclick="editAllNames()">Nama Tim</button>
+        
+        <select class="hide-in-fullscreen" id="themeSelector" onchange="changeTheme()">
+            <option value="theme-bawaan">Bawaan</option>
+            <option value="theme-cerah">Gaya cerah</option>
+            <option value="theme-led">Layar LED</option>
+            <option value="theme-redblue">Tim merah / Tim biru</option>
+            <option value="theme-flip">Jam flip</option>
+            <option value="theme-kapur">Papan kapur</option>
+        </select>
+    </div>
+
+    <div class="info-text hide-in-fullscreen">(Klik pada angka poin, set, atau nama untuk mengubahnya)</div>
+
+    <script>
+        let scores = { 1: 0, 2: 0 };
+        let sets = { 1: 0, 2: 0 };
+        let names = { 1: "Rmh", 2: "Tamu" };
+        let gamePoint = 25; 
+        let isMatchEnded = false;
+
+        function setGamePoint() {
+            let input = prompt("Masukkan batas Poin Kemenangan (Game Point):", gamePoint);
+            let parsed = parseInt(input);
+            if (!isNaN(parsed) && parsed > 0) {
+                gamePoint = parsed;
+                document.getElementById('gpDisplay').innerText = gamePoint;
+            }
+        }
+
+        function addScore(team) {
+            if(isMatchEnded) return; 
+            scores[team]++;
+            updateUI();
+            
+            if (scores[team] >= gamePoint) {
+                isMatchEnded = true;
+                setTimeout(() => {
+                    triggerWinnerScreen(team);
+                }, 100); 
+            }
+        }
+
+        function subScore(team) { if (scores[team] > 0 && !isMatchEnded) scores[team]--; updateUI(); }
+        
+        function addSet(team) { sets[team]++; updateUI(); }
+        function subSet(team) { if (sets[team] > 0) sets[team]--; updateUI(); }
+
+        function triggerWinnerScreen(team) {
+            document.getElementById('winnerNameDisplay').innerText = names[team];
+            document.getElementById('winnerScreen').classList.add('show');
+            sets[team]++;
+            updateUI();
+        }
+
+        function closeWinnerScreen() {
+            document.getElementById('winnerScreen').classList.remove('show');
+            isMatchEnded = false; 
+        }
+
+        function editName(team) {
+            let newName = prompt(`Masukkan nama baru untuk Tim ${team}:`, names[team]);
+            if (newName !== null && newName.trim() !== "") { names[team] = newName.trim(); updateUI(); }
+        }
+        function editAllNames() { editName(1); editName(2); }
+
+        function swapTeams() {
+            let tempScore = scores[1]; scores[1] = scores[2]; scores[2] = tempScore;
+            let tempSet = sets[1]; sets[1] = sets[2]; sets[2] = tempSet;
+            let tempName = names[1]; names[1] = names[2]; names[2] = tempName;
+            updateUI();
+        }
+
+        function resetScore() {
+            if (confirm("Apakah Anda yakin ingin mengatur ulang semua skor dan set ke 0?")) {
+                scores = { 1: 0, 2: 0 };
+                sets = { 1: 0, 2: 0 };
+                isMatchEnded = false;
+                updateUI();
+            }
+        }
+
+        function changeTheme() {
+            let selector = document.getElementById('themeSelector');
+            let body = document.getElementById('bodyElement');
+            let isHidden = body.classList.contains('hide-minus');
+            let isFullScreen = body.classList.contains('is-fullscreen');
+            
+            body.className = selector.value;
+            
+            if (isHidden) body.classList.add('hide-minus');
+            if (isFullScreen) body.classList.add('is-fullscreen');
+        }
+
+        function toggleMinusButtons() {
+            let body = document.getElementById('bodyElement');
+            let btn = document.getElementById('toggleMinusBtn');
+            body.classList.toggle('hide-minus');
+            btn.innerText = body.classList.contains('hide-minus') ? "Tampilkan -1" : "Sembunyikan -1";
+        }
+
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch((err) => {
+                    alert(`Error: Tidak dapat mengaktifkan mode layar penuh: ${err.message}`);
+                });
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+            }
+        }
+
+        document.addEventListener('fullscreenchange', () => {
+            let body = document.getElementById('bodyElement');
+            let fsBtn = document.getElementById('fullscreenBtn');
+            if (document.fullscreenElement) {
+                body.classList.add('is-fullscreen');
+                fsBtn.innerText = "Perkecil Tampilan";
+            } else {
+                body.classList.remove('is-fullscreen');
+                fsBtn.innerText = "Layar Penuh";
+            }
+        });
+
+        function updateUI() {
+            document.getElementById('score1').innerText = scores[1];
+            document.getElementById('score2').innerText = scores[2];
+            document.getElementById('set1').innerText = sets[1];
+            document.getElementById('set2').innerText = sets[2];
+            document.getElementById('name1').innerText = names[1];
+            document.getElementById('name2').innerText = names[2];
+        }
+    </script>
+</body>
+</html>
